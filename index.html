@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;bor
 <section id="login" class="card login">
 <div style="font-size:48px">☕</div><h1>Kaffeekasse</h1><p style="color:var(--muted);font-size:20px">MS Hörsching · Verwaltung</p>
 <div id="loginmsg"></div><label>E-Mail</label><input id="email" type="email"><label>Passwort</label><input id="password" type="password">
-<button class="primary" onclick="doLogin()">Anmelden</button>
+<button class="primary" id="loginButton" type="button">Anmelden</button><div style="margin-top:14px;color:#68736c;font-size:12px">Version 2.1</div>
 </section>
 
 <div id="app" class="hidden">
@@ -82,6 +82,11 @@ async function doLogin(){
   const {error}=await sb.auth.signInWithPassword({email:emailValue,password:passwordValue});
   if(error) loginMsg.innerHTML=`<div class="notice error">${error.message}</div>`;
 }
+document.getElementById('loginButton').addEventListener('click', doLogin);
+document.getElementById('password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
 async function logout(){await sb.auth.signOut()}
 sb.auth.onAuthStateChange((_e,s)=>renderAuth(!!s));
 async function renderAuth(ok){
