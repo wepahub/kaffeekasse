@@ -4,36 +4,109 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kaffeekasse – MS Hörsching</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1d2723;background:#f3f5f2}*{box-sizing:border-box}body{margin:0}.wrap{max-width:980px;margin:auto;padding:28px 18px 60px}header{display:flex;align-items:center;gap:14px;margin-bottom:24px}.logo{font-size:38px}.muted{color:#6c756f}.card{background:#fff;border:1px solid #dde2de;border-radius:18px;padding:20px;box-shadow:0 4px 18px #0000000a;margin-bottom:16px}.login{max-width:440px;margin:10vh auto}.field{display:grid;gap:7px;margin:14px 0}input,select,button{font:inherit}input,select{width:100%;padding:12px;border:1px solid #cfd6d1;border-radius:10px;background:#fff}button{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-weight:650;background:#244b3a;color:white}button.secondary{background:#e8ede9;color:#244b3a}button.danger{background:#7d302f}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.month{font-size:24px;font-weight:750}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}.stat{background:#f5f7f5;border-radius:14px;padding:16px}.stat b{font-size:24px;display:block;margin-top:3px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #e6e9e7}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total td{font-weight:750;border-top:2px solid #bcc6bf}.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#e8ede9;font-size:13px}.status.done{background:#dcecdf;color:#205b32}.error{color:#a12b28;margin-top:10px}.hidden{display:none!important}@media(max-width:620px){.stats{grid-template-columns:1fr}.month{font-size:20px}.card{padding:15px}th,td{padding:10px 5px}.hide-mobile{display:none}}
+:root{--g:#214f3e;--bg:#f4f7f4;--line:#dce3de;--muted:#68736c;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:#17251f}
+button,input,select{font:inherit}.wrap{max-width:1220px;margin:auto;padding:28px 22px}
+header{display:flex;align-items:center;gap:14px;justify-content:space-between;margin-bottom:24px}.brand{display:flex;align-items:center;gap:12px}.brand b{font-size:31px}.brand small{display:block;color:var(--muted);font-size:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 8px 24px #173b2810;margin-bottom:20px}
+button{border:0;border-radius:14px;padding:12px 17px;font-weight:700;cursor:pointer;background:#e9efeb;color:var(--g)}button.primary{background:var(--g);color:white}button.danger{color:#8a2929}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}.tabs button.active{background:var(--g);color:#fff}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.stat{background:#f3f6f4;border-radius:18px;padding:20px}.stat span{color:var(--muted)}.stat strong{display:block;font-size:30px;margin-top:4px}
+.month{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.month h2{margin:0;font-size:30px}.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;border-bottom:1px solid var(--line)}th{color:#24332c}td.num,th.num{text-align:right}
+.formrow{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}.field label{display:block;font-weight:650;margin:0 0 6px}.field input,.field select{width:100%;border:1px solid #cbd5ce;border-radius:12px;padding:12px;background:white}
+.notice{padding:12px 15px;border-radius:12px;background:#edf3ef;margin-bottom:16px}.error{background:#faeaea;color:#7c2424}.pill{display:inline-block;padding:7px 11px;border-radius:999px;background:#eaf0ec}.hidden{display:none!important}
+.login{max-width:560px;margin:8vh auto}.login h1{font-size:40px;margin:22px 0 4px}.login input{width:100%;padding:15px;border:1px solid #cbd5ce;border-radius:14px;margin:7px 0 14px}.login button{font-size:18px}
+@media(max-width:760px){.grid3{grid-template-columns:1fr}.formrow{grid-template-columns:1fr}.wrap{padding:18px 12px}.card{padding:18px;border-radius:18px}.month h2{font-size:23px}table{font-size:14px}th,td{padding:11px 6px}.brand b{font-size:25px}}
 </style>
-</head><body><div class="wrap">
-<section id="login" class="card login"><div class="logo">☕</div><h1>Kaffeekasse</h1><p class="muted">MS Hörsching · Verwaltung</p><div class="field"><label>E-Mail</label><input id="email" type="email" autocomplete="username"></div><div class="field"><label>Passwort</label><input id="password" type="password" autocomplete="current-password"></div><button id="loginBtn">Anmelden</button><div id="loginError" class="error"></div></section>
-<section id="app" class="hidden"><header><div class="logo">☕</div><div><h1 style="margin:0">Kaffeekasse</h1><div class="muted">MS Hörsching</div></div><button id="logoutBtn" class="secondary" style="margin-left:auto">Abmelden</button></header>
-<div class="card"><div class="row between"><button id="prev" class="secondary">‹</button><div id="monthTitle" class="month"></div><button id="next" class="secondary">›</button></div><div class="stats"><div class="stat"><span class="muted">Personen</span><b id="peopleCount">–</b></div><div class="stat"><span class="muted">Kaffee</span><b id="coffeeTotal">–</b></div><div class="stat"><span class="muted">Gesamt</span><b id="moneyTotal">–</b></div></div><div class="row between"><span id="billingStatus" class="status">nicht abgerechnet</span><div class="row"><button id="pdfBtn" class="secondary">PDF-Abrechnung</button><button id="settleBtn">Monat abrechnen</button></div></div></div>
-<div class="card"><table><thead><tr><th>Kürzel</th><th>Kaffee</th><th class="hide-mobile">Einzelpreis</th><th>Betrag</th></tr></thead><tbody id="rows"></tbody><tfoot id="tfoot"></tfoot></table><div id="dataError" class="error"></div></div>
-</section></div>
+</head>
+<body>
+<div class="wrap">
+<section id="login" class="card login">
+<div style="font-size:48px">☕</div><h1>Kaffeekasse</h1><p style="color:var(--muted);font-size:20px">MS Hörsching · Verwaltung</p>
+<div id="loginmsg"></div><label>E-Mail</label><input id="email" type="email"><label>Passwort</label><input id="password" type="password">
+<button class="primary" onclick="login()">Anmelden</button>
+</section>
+
+<div id="app" class="hidden">
+<header><div class="brand"><span style="font-size:38px">☕</span><div><b>Kaffeekasse</b><small>MS Hörsching</small></div></div><button onclick="logout()">Abmelden</button></header>
+<nav class="tabs">
+<button data-tab="abrechnung" class="active" onclick="tab('abrechnung',this)">Abrechnung</button>
+<button data-tab="buchungen" onclick="tab('buchungen',this)">Buchungen</button>
+<button data-tab="personen" onclick="tab('personen',this)">Personen</button>
+<button data-tab="einstellungen" onclick="tab('einstellungen',this)">Einstellungen</button>
+</nav>
+<div id="msg"></div>
+
+<section id="abrechnung" class="panel">
+<div class="card">
+<div class="month"><button onclick="shiftMonth(-1)">‹</button><h2 id="monthTitle"></h2><button onclick="shiftMonth(1)">›</button></div>
+<div class="grid3"><div class="stat"><span>Personen</span><strong id="personsCount">0</strong></div><div class="stat"><span>Kaffee</span><strong id="coffeeCount">0</strong></div><div class="stat"><span>Gesamt</span><strong id="sum">€ 0,00</strong></div></div>
+<div class="actions"><span id="status" class="pill">nicht abgerechnet</span><button onclick="makePDF()">PDF-Abrechnung</button><button id="settleBtn" class="primary" onclick="toggleSettled()">Monat abrechnen</button></div>
+</div>
+<div class="card"><table><thead><tr><th>Kürzel</th><th class="num">Kaffee</th><th class="num">Einzelpreis</th><th class="num">Betrag</th></tr></thead><tbody id="summaryBody"></tbody><tfoot id="summaryFoot"></tfoot></table></div>
+</section>
+
+<section id="buchungen" class="panel hidden">
+<div class="card"><h2>Einzelbuchungen · <span id="bookingMonth"></span></h2><p style="color:var(--muted)">Hier kannst du eine versehentliche Buchung entfernen.</p>
+<table><thead><tr><th>Datum</th><th>Uhrzeit</th><th>Kürzel</th><th></th></tr></thead><tbody id="bookingBody"></tbody></table></div>
+</section>
+
+<section id="personen" class="panel hidden">
+<div class="card"><h2>Person hinzufügen</h2><div class="formrow"><div class="field"><label>Kürzel</label><input id="newShort" maxlength="12" placeholder="z. B. WEPA"></div><div class="field"><label>Chip-UID</label><input id="newUid" placeholder="z. B. 6CEE9712"></div><button class="primary" onclick="addPerson()">Hinzufügen</button></div></div>
+<div class="card"><h2>Personen</h2><table><thead><tr><th>Kürzel</th><th>Chip-UID</th><th>Aktiv</th></tr></thead><tbody id="peopleBody"></tbody></table></div>
+</section>
+
+<section id="einstellungen" class="panel hidden">
+<div class="card"><h2>Kaffeepreis</h2><p style="color:var(--muted)">Eine Änderung gilt ab dem ausgewählten Monat. Frühere Abrechnungen bleiben unverändert.</p>
+<div class="formrow"><div class="field"><label>Preis pro Kaffee (€)</label><input id="price" type="number" min="0" step="0.01" value="0.50"></div><div class="field"><label>Gültig ab</label><input id="validFrom" type="month"></div><button class="primary" onclick="savePrice()">Preis speichern</button></div></div>
+<div class="card"><h2>Preishistorie</h2><table><thead><tr><th>Gültig ab</th><th class="num">Preis</th></tr></thead><tbody id="priceBody"></tbody></table></div>
+</section>
+</div></div>
+
 <script>
-const SUPABASE_URL='https://rsulxnggdfngcvffaxvp.supabase.co';
-const SUPABASE_KEY='sb_publishable_XSInViWdnmHFbR7cBsBwGA_jr7h9YGp';
+const SUPABASE_URL="https://rsulxnggdfngcvffaxvp.supabase.co", SUPABASE_KEY="sb_publishable_XSInViWdnmHFbR7cBsBwGA_jr7h9YGp";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const $=id=>document.getElementById(id); let cursor=new Date(); cursor=new Date(cursor.getFullYear(),cursor.getMonth(),1); let currentRows=[]; let currentBilling=null;
-const months=['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-const eur=n=>Number(n||0).toLocaleString('de-AT',{style:'currency',currency:'EUR'});
-async function boot(){const {data:{session}}=await sb.auth.getSession(); showSession(session); sb.auth.onAuthStateChange((_e,s)=>showSession(s));}
-function showSession(s){$('login').classList.toggle('hidden',!!s);$('app').classList.toggle('hidden',!s);if(s)loadMonth();}
-$('loginBtn').onclick=async()=>{ $('loginError').textContent=''; const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}); if(error)$('loginError').textContent=error.message; };
-$('logoutBtn').onclick=()=>sb.auth.signOut();
-$('prev').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);loadMonth()}; $('next').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);loadMonth()};
-async function loadMonth(){const y=cursor.getFullYear(),m=cursor.getMonth()+1;$('monthTitle').textContent=`${months[m-1]} ${y}`;$('dataError').textContent='';
- const [{data:rows,error:e1},{data:bill,error:e2}]=await Promise.all([sb.from('kaffee_abrechnung').select('*').eq('jahr',y).eq('monat',m).order('kuerzel'),sb.from('abrechnungen').select('*').eq('jahr',y).eq('monat',m).maybeSingle()]);
- if(e1){$('dataError').textContent=e1.message;return} if(e2){$('dataError').textContent=e2.message;return} currentRows=rows||[];currentBilling=bill;render();}
-function render(){let coffees=0,money=0;$('rows').innerHTML=currentRows.map(r=>{coffees+=Number(r.kaffee);money+=Number(r.betrag);return `<tr><td><b>${esc(r.kuerzel)}</b></td><td>${r.kaffee}</td><td class="hide-mobile">${eur(r.einzelpreis)}</td><td>${eur(r.betrag)}</td></tr>`}).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat.</td></tr>';
- $('peopleCount').textContent=currentRows.length;$('coffeeTotal').textContent=coffees;$('moneyTotal').textContent=eur(money);$('tfoot').innerHTML=`<tr class="total"><td>Gesamt</td><td>${coffees}</td><td class="hide-mobile"></td><td>${eur(money)}</td></tr>`;
- $('billingStatus').textContent=currentBilling?`✓ abgerechnet am ${new Date(currentBilling.abgerechnet_am).toLocaleDateString('de-AT')}`:'nicht abgerechnet';$('billingStatus').classList.toggle('done',!!currentBilling);$('settleBtn').textContent=currentBilling?'Abrechnung zurücknehmen':'Monat abrechnen';$('settleBtn').className=currentBilling?'danger':'';}
-$('settleBtn').onclick=async()=>{const y=cursor.getFullYear(),m=cursor.getMonth()+1;if(currentBilling){if(!confirm('Abrechnungsstatus für diesen Monat wirklich zurücknehmen?'))return;const {error}=await sb.from('abrechnungen').delete().eq('id',currentBilling.id);if(error)return alert(error.message)}else{if(!confirm(`${months[m-1]} ${y} als abgerechnet markieren?`))return;const {error}=await sb.from('abrechnungen').insert({jahr:y,monat:m});if(error)return alert(error.message)}loadMonth()};
-$('pdfBtn').onclick=()=>{const {jsPDF}=window.jspdf;const doc=new jsPDF();const y=cursor.getFullYear(),m=cursor.getMonth()+1;let coffees=currentRows.reduce((s,r)=>s+Number(r.kaffee),0),money=currentRows.reduce((s,r)=>s+Number(r.betrag),0);doc.setFontSize(18);doc.text('Kaffeekasse – MS Hörsching',14,18);doc.setFontSize(13);doc.text(`Monatsabrechnung ${months[m-1]} ${y}`,14,27);doc.setFontSize(9);doc.text(`Erstellt am ${new Date().toLocaleDateString('de-AT')}`,14,34);doc.autoTable({startY:42,head:[['Kürzel','Kaffee','Einzelpreis','Betrag']],body:currentRows.map(r=>[r.kuerzel,String(r.kaffee),eur(r.einzelpreis),eur(r.betrag)]),foot:[['Gesamt',String(coffees),'',eur(money)]],styles:{fontSize:10},headStyles:{fillColor:[55,75,65]},footStyles:{fillColor:[235,239,236],textColor:[20,30,25]}});let fy=doc.lastAutoTable.finalY+10;doc.setFontSize(10);doc.text(currentBilling?`Status: abgerechnet am ${new Date(currentBilling.abgerechnet_am).toLocaleDateString('de-AT')}`:'Status: noch nicht als abgerechnet markiert',14,fy);doc.save(`Kaffeekasse_${y}-${String(m).padStart(2,'0')}.pdf`)};
-function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))} boot();
-</script></body></html>
+let current=new Date(), summary=[], settled=null, peopleMap={};
+
+function euro(v){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(v||0))}
+function monthName(d){return new Intl.DateTimeFormat('de-AT',{month:'long',year:'numeric'}).format(d)}
+function ymdMonth(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function showMsg(t,err=false){document.getElementById('msg').innerHTML=t?`<div class="notice ${err?'error':''}">${t}</div>`:''}
+async function login(){let {error}=await sb.auth.signInWithPassword({email:email.value,password:password.value});if(error)loginmsg.innerHTML=`<div class="notice error">${error.message}</div>`}
+async function logout(){await sb.auth.signOut()}
+sb.auth.onAuthStateChange((_e,s)=>renderAuth(!!s));
+async function renderAuth(ok){login.classList.toggle('hidden',ok);app.classList.toggle('hidden',!ok);if(ok){validFrom.value=ymdMonth(current);await refreshAll()}}
+function tab(id,b){document.querySelectorAll('.panel').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(id==='buchungen')loadBookings();if(id==='personen')loadPeople();if(id==='einstellungen')loadPrices()}
+function shiftMonth(n){current=new Date(current.getFullYear(),current.getMonth()+n,1);validFrom.value=ymdMonth(current);refreshAll()}
+async function refreshAll(){await Promise.all([loadSummary(),loadSettled()]);}
+async function loadSummary(){
+monthTitle.textContent=monthName(current);bookingMonth.textContent=monthName(current);
+let {data,error}=await sb.from('kaffee_abrechnung').select('*').eq('jahr',current.getFullYear()).eq('monat',current.getMonth()+1).order('kuerzel');
+if(error){showMsg(error.message,true);return} summary=data||[];
+let coffees=summary.reduce((a,x)=>a+Number(x.kaffee),0), total=summary.reduce((a,x)=>a+Number(x.betrag),0);
+personsCount.textContent=summary.length;coffeeCount.textContent=coffees;sum.textContent=euro(total);
+summaryBody.innerHTML=summary.map(x=>`<tr><td><b>${x.kuerzel}</b></td><td class="num">${x.kaffee}</td><td class="num">${euro(x.einzelpreis)}</td><td class="num">${euro(x.betrag)}</td></tr>`).join('')||'<tr><td colspan="4">Keine Buchungen in diesem Monat.</td></tr>';
+summaryFoot.innerHTML=`<tr><th>Gesamt</th><th class="num">${coffees}</th><th></th><th class="num">${euro(total)}</th></tr>`;
+}
+async function loadSettled(){let {data}=await sb.from('abrechnungen').select('*').eq('jahr',current.getFullYear()).eq('monat',current.getMonth()+1).maybeSingle();settled=data;status.textContent=data?`✓ abgerechnet ${new Date(data.abgerechnet_am).toLocaleDateString('de-AT')}`:'nicht abgerechnet';settleBtn.textContent=data?'Abrechnung zurücknehmen':'Monat abrechnen'}
+async function toggleSettled(){if(settled){if(!confirm('Abrechnungsstatus wirklich zurücknehmen?'))return;let {error}=await sb.from('abrechnungen').delete().eq('id',settled.id);if(error)return showMsg(error.message,true)}else{let {error}=await sb.from('abrechnungen').insert({jahr:current.getFullYear(),monat:current.getMonth()+1});if(error)return showMsg(error.message,true)}await loadSettled()}
+async function loadPeople(){
+let {data,error}=await sb.from('personen').select('uid,kuerzel,aktiv').order('kuerzel');if(error)return showMsg(error.message,true);peopleMap=Object.fromEntries((data||[]).map(p=>[p.uid,p.kuerzel]));
+peopleBody.innerHTML=(data||[]).map(p=>`<tr><td><b>${p.kuerzel}</b></td><td>${p.uid}</td><td><input type="checkbox" ${p.aktiv?'checked':''} onchange="setActive('${p.uid}',this.checked)"></td></tr>`).join('');
+}
+async function addPerson(){let k=newShort.value.trim().toUpperCase(),u=newUid.value.trim().toUpperCase();if(!k||!u)return showMsg('Bitte Kürzel und Chip-UID eingeben.',true);let {error}=await sb.from('personen').insert({kuerzel:k,uid:u,aktiv:true});if(error)return showMsg(error.message,true);newShort.value='';newUid.value='';showMsg('Person hinzugefügt.');loadPeople()}
+async function setActive(uid,v){let {error}=await sb.from('personen').update({aktiv:v}).eq('uid',uid);if(error)showMsg(error.message,true)}
+async function loadBookings(){
+await loadPeople();let start=new Date(current.getFullYear(),current.getMonth(),1),end=new Date(current.getFullYear(),current.getMonth()+1,1);
+let {data,error}=await sb.from('buchungen').select('id,uid,created_at').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:false});if(error)return showMsg(error.message,true);
+bookingBody.innerHTML=(data||[]).map(b=>{let d=new Date(b.created_at);return `<tr><td>${d.toLocaleDateString('de-AT')}</td><td>${d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'})}</td><td>${peopleMap[b.uid]||b.uid}</td><td class="num"><button class="danger" onclick="deleteBooking(${b.id})">Entfernen</button></td></tr>`}).join('')||'<tr><td colspan="4">Keine Buchungen.</td></tr>';
+}
+async function deleteBooking(id){if(!confirm('Diese Kaffeebuchung wirklich entfernen?'))return;let {error}=await sb.from('buchungen').delete().eq('id',id);if(error)return showMsg(error.message,true);showMsg('Buchung entfernt.');await refreshAll();loadBookings()}
+async function loadPrices(){let {data,error}=await sb.from('kaffeepreise').select('*').order('gueltig_ab',{ascending:false});if(error)return showMsg(error.message,true);priceBody.innerHTML=(data||[]).map(x=>`<tr><td>${new Date(x.gueltig_ab+'T12:00:00').toLocaleDateString('de-AT',{month:'long',year:'numeric'})}</td><td class="num">${euro(x.preis)}</td></tr>`).join('')}
+async function savePrice(){let p=Number(price.value),v=validFrom.value;if(!v||p<0)return showMsg('Bitte Preis und Monat angeben.',true);let {error}=await sb.from('kaffeepreise').upsert({gueltig_ab:v+'-01',preis:p},{onConflict:'gueltig_ab'});if(error)return showMsg(error.message,true);showMsg('Kaffeepreis gespeichert.');loadPrices();loadSummary()}
+function makePDF(){const {jsPDF}=window.jspdf,doc=new jsPDF();let y=22;doc.setFontSize(18);doc.text('Kaffeekasse – MS Hörsching',20,y);y+=9;doc.setFontSize(13);doc.text('Monatsabrechnung '+monthName(current),20,y);y+=13;doc.setFontSize(10);doc.text('Kürzel',20,y);doc.text('Kaffee',85,y);doc.text('Einzelpreis',115,y);doc.text('Betrag',165,y);y+=7;summary.forEach(x=>{doc.text(String(x.kuerzel),20,y);doc.text(String(x.kaffee),85,y);doc.text(euro(x.einzelpreis),115,y);doc.text(euro(x.betrag),165,y);y+=7});y+=4;let c=summary.reduce((a,x)=>a+Number(x.kaffee),0),s=summary.reduce((a,x)=>a+Number(x.betrag),0);doc.setFont(undefined,'bold');doc.text('Gesamt',20,y);doc.text(String(c),85,y);doc.text(euro(s),165,y);y+=14;doc.setFont(undefined,'normal');doc.setFontSize(9);doc.text('Erstellt am '+new Date().toLocaleDateString('de-AT'),20,y);doc.save(`Kaffeekasse_${current.getFullYear()}_${String(current.getMonth()+1).padStart(2,'0')}.pdf`)}
+sb.auth.getSession().then(({data})=>renderAuth(!!data.session));
+</script>
+</body></html>
