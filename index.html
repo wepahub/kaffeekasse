@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;bor
 <section id="login" class="card login">
 <div style="font-size:48px">☕</div><h1>Kaffeekasse</h1><p style="color:var(--muted);font-size:20px">MS Hörsching · Verwaltung</p>
 <div id="loginmsg"></div><label>E-Mail</label><input id="email" type="email"><label>Passwort</label><input id="password" type="password">
-<button class="primary" onclick="login()">Anmelden</button>
+<button class="primary" onclick="doLogin()">Anmelden</button>
 </section>
 
 <div id="app" class="hidden">
@@ -74,10 +74,24 @@ function euro(v){return new Intl.NumberFormat('de-AT',{style:'currency',currency
 function monthName(d){return new Intl.DateTimeFormat('de-AT',{month:'long',year:'numeric'}).format(d)}
 function ymdMonth(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
 function showMsg(t,err=false){document.getElementById('msg').innerHTML=t?`<div class="notice ${err?'error':''}">${t}</div>`:''}
-async function login(){let {error}=await sb.auth.signInWithPassword({email:email.value,password:password.value});if(error)loginmsg.innerHTML=`<div class="notice error">${error.message}</div>`}
+async function doLogin(){
+  const emailValue=document.getElementById('email').value.trim();
+  const passwordValue=document.getElementById('password').value;
+  const loginMsg=document.getElementById('loginmsg');
+  loginMsg.innerHTML='';
+  const {error}=await sb.auth.signInWithPassword({email:emailValue,password:passwordValue});
+  if(error) loginMsg.innerHTML=`<div class="notice error">${error.message}</div>`;
+}
 async function logout(){await sb.auth.signOut()}
 sb.auth.onAuthStateChange((_e,s)=>renderAuth(!!s));
-async function renderAuth(ok){login.classList.toggle('hidden',ok);app.classList.toggle('hidden',!ok);if(ok){validFrom.value=ymdMonth(current);await refreshAll()}}
+async function renderAuth(ok){
+  document.getElementById('login').classList.toggle('hidden',ok);
+  document.getElementById('app').classList.toggle('hidden',!ok);
+  if(ok){
+    document.getElementById('validFrom').value=ymdMonth(current);
+    await refreshAll();
+  }
+}
 function tab(id,b){document.querySelectorAll('.panel').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(id==='buchungen')loadBookings();if(id==='personen')loadPeople();if(id==='einstellungen')loadPrices()}
 function shiftMonth(n){current=new Date(current.getFullYear(),current.getMonth()+n,1);validFrom.value=ymdMonth(current);refreshAll()}
 async function refreshAll(){await Promise.all([loadSummary(),loadSettled()]);}
