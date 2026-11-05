@@ -22,6 +22,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;bor
 .scanrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.pill.live{background:#efe2f5;color:#6b2a86;font-weight:700}
 .uidbox{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.06em;padding:8px 14px;border-radius:12px;background:#f3f6f4;border:2px solid var(--g)}
 .edit input{width:100%;border:1px solid #cbd5ce;border-radius:10px;padding:9px;background:white}.edit input.uid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.tablehead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.tablehead h2{margin:.6em 0}th.sel,td.sel{width:44px}button.danger:not(:disabled){background:#faeaea}
 td.btns{white-space:nowrap;text-align:right}td.btns button{padding:8px 12px;margin-left:6px}
 tr.flash td{animation:flash 1.6s ease-out}@keyframes flash{0%{background:#d9eee2}100%{background:transparent}}
 input.flash{animation:flashin 1.6s ease-out}@keyframes flashin{0%{box-shadow:0 0 0 4px #b9dcc8}100%{box-shadow:0 0 0 0 transparent}}
@@ -34,7 +35,7 @@ input.flash{animation:flashin 1.6s ease-out}@keyframes flashin{0%{box-shadow:0 0
 <section id="login" class="card login">
 <div style="font-size:48px">☕</div><h1>Kaffeekasse</h1><p style="color:var(--muted);font-size:20px">MS Hörsching · Verwaltung</p>
 <div id="loginmsg"></div><label>E-Mail</label><input id="email" type="email" autocomplete="username"><label>Passwort</label><input id="password" type="password" autocomplete="current-password">
-<button class="primary" id="loginButton" type="button">Anmelden</button><div style="margin-top:14px;color:#68736c;font-size:12px">Version 2.3</div>
+<button class="primary" id="loginButton" type="button">Anmelden</button><div style="margin-top:14px;color:#68736c;font-size:12px">Version 2.4</div>
 </section>
 
 <div id="app" class="hidden">
@@ -69,7 +70,7 @@ input.flash{animation:flashin 1.6s ease-out}@keyframes flashin{0%{box-shadow:0 0
 </div>
 <div class="card"><h2>Person hinzufügen</h2><div class="formrow"><div class="field"><label for="newShort">Kürzel</label><input id="newShort" maxlength="12" placeholder="z. B. WEPA" autocomplete="off"></div><div class="field"><label for="newUid">Chip-UID</label><input id="newUid" placeholder="z. B. 6CEE9712" autocomplete="off"></div><button class="primary" onclick="addPerson()">Hinzufügen</button></div>
 <p class="hint">Am einfachsten: Station oben verbinden und den neuen Chip auflegen – die UID wird automatisch eingetragen. Leerzeichen und Doppelpunkte werden entfernt.</p></div>
-<div class="card"><h2>Personen</h2><p class="hint" style="margin:-6px 0 10px">Mit „Bearbeiten“ lassen sich Kürzel und Chip ändern. Bei einem Chip-Tausch werden alle bisherigen Kaffees auf den neuen Chip übertragen.</p><table><thead><tr><th>Kürzel</th><th>Chip-UID</th><th>Aktiv</th><th></th></tr></thead><tbody id="peopleBody"></tbody></table></div>
+<div class="card"><div class="tablehead"><h2>Personen</h2><button id="delBtn" class="danger" type="button" disabled>Ausgewählte löschen</button></div><p class="hint" style="margin:-6px 0 10px">Mit „Bearbeiten“ lassen sich Kürzel und Chip ändern. Bei einem Chip-Tausch werden alle bisherigen Kaffees auf den neuen Chip übertragen. Wer nur nicht mehr Kaffee trinkt, wird besser <b>gesperrt</b> (Haken bei „Aktiv“ weg) statt gelöscht.</p><table><thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="Alle auswählen"></th><th>Kürzel</th><th>Chip-UID</th><th>Aktiv</th><th></th></tr></thead><tbody id="peopleBody"></tbody></table></div>
 </section>
 
 <section id="einstellungen" class="panel hidden">
@@ -80,7 +81,9 @@ input.flash{animation:flashin 1.6s ease-out}@keyframes flashin{0%{box-shadow:0 0
 </div></div>
 
 <script>
-// Kaffeekasse – Verwaltung, Version 2.3 (05.11.2026)
+// Kaffeekasse – Verwaltung, Version 2.4 (05.11.2026)
+// 2.4: Personen löschen (Auswahl, auch alle; Buchungen werden mitgelöscht),
+//      automatische Wiederholung bei „JWT issued at future“ (Supabase-Fehler).
 // 2.3: Personen bearbeiten (Kürzel, Chip-Tausch inkl. Übertragung der
 //      bisherigen Buchungen), Chips per USB direkt mit der Station
 //      einscannen (Chrome/Edge, Firmware 3.1 mit Lernmodus).
@@ -89,7 +92,19 @@ input.flash{animation:flashin 1.6s ease-out}@keyframes flashin{0%{box-shadow:0 0
 //      auch im Reiter „Buchungen“, Chip-UID wird bereinigt und geprüft.
 
 const SUPABASE_URL="https://rsulxnggdfngcvffaxvp.supabase.co", SUPABASE_KEY="sb_publishable_XSInViWdnmHFbR7cBsBwGA_jr7h9YGp";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// Supabase meldet manchmal kurz nach der Anmeldung „JWT issued at future“
+// (PGRST303, ein Zeitfehler auf dem Server). Die Anfrage wurde dann NICHT
+// ausgeführt – darum hier bis zu 4-mal mit kurzer Pause wiederholen.
+async function retryFetch(input,init){
+  for(let i=0;;i++){
+    const res=await fetch(input,init);
+    if(res.status!==401||i>=4)return res;
+    let body='';try{body=await res.clone().text()}catch(e){}
+    if(!/PGRST303|issued at future/i.test(body))return res;
+    await new Promise(r=>setTimeout(r,700*(i+1)));
+  }
+}
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{fetch:retryFetch}});
 let current=new Date(), summary=[], settled=null, peopleMap={}, activeTab='abrechnung', loggedIn=null;
 
 const $=id=>document.getElementById(id);
@@ -193,7 +208,7 @@ async function toggleSettled(){
 }
 
 // ---------- Personen ----------
-let people=[], editUid=null;
+let people=[], editUid=null, selected=new Set();
 function normUid(s){return String(s||'').toUpperCase().replace(/[\s:\-]/g,'')}
 function validUid(u){return /^[0-9A-F]+$/.test(u)&&[8,14,20].includes(u.length)}
 const UID_HINT='Die Chip-UID sieht ungewöhnlich aus: erwartet werden 8, 14 oder 20 Zeichen aus 0–9 und A–F (z. B. 6CEE9712).';
@@ -204,14 +219,17 @@ async function loadPeople(){
   people=data||[];
   peopleMap=Object.fromEntries(people.map(p=>[p.uid,p.kuerzel]));
   if(editUid&&!people.some(p=>p.uid===editUid))editUid=null;
+  selected=new Set([...selected].filter(u=>people.some(p=>p.uid===u)));
   renderPeople();
 }
 function renderPeople(){
+  const box=p=>`<input type="checkbox" class="aktiv" data-uid="${esc(p.uid)}" aria-label="${esc(p.kuerzel)} aktiv" ${p.aktiv?'checked':''}>`;
+  const sel=p=>`<td class="sel"><input type="checkbox" class="pick" data-uid="${esc(p.uid)}" aria-label="${esc(p.kuerzel)} auswählen" ${selected.has(p.uid)?'checked':''}></td>`;
   $('peopleBody').innerHTML=people.map(p=>{
-    const box=`<input type="checkbox" data-uid="${esc(p.uid)}" aria-label="${esc(p.kuerzel)} aktiv" ${p.aktiv?'checked':''}>`;
-    if(p.uid===editUid)return `<tr class="edit" data-row="${esc(p.uid)}"><td><input class="k" maxlength="12" value="${esc(p.kuerzel)}" aria-label="Kürzel"></td><td><input class="uid" value="${esc(p.uid)}" aria-label="Chip-UID" autocomplete="off"></td><td>${box}</td><td class="btns"><button class="primary" data-save="1" type="button">Speichern</button><button data-cancel="1" type="button">Abbrechen</button></td></tr>`;
-    return `<tr data-row="${esc(p.uid)}"><td><b>${esc(p.kuerzel)}</b></td><td>${esc(p.uid)}</td><td>${box}</td><td class="btns"><button data-edit="${esc(p.uid)}" type="button">Bearbeiten</button></td></tr>`;
-  }).join('')||'<tr><td colspan="4">Noch keine Personen.</td></tr>';
+    if(p.uid===editUid)return `<tr class="edit" data-row="${esc(p.uid)}">${sel(p)}<td><input class="k" maxlength="12" value="${esc(p.kuerzel)}" aria-label="Kürzel"></td><td><input class="uid" value="${esc(p.uid)}" aria-label="Chip-UID" autocomplete="off"></td><td>${box(p)}</td><td class="btns"><button class="primary" data-save="1" type="button">Speichern</button><button data-cancel="1" type="button">Abbrechen</button></td></tr>`;
+    return `<tr data-row="${esc(p.uid)}">${sel(p)}<td><b>${esc(p.kuerzel)}</b></td><td>${esc(p.uid)}</td><td>${box(p)}</td><td class="btns"><button data-edit="${esc(p.uid)}" type="button">Bearbeiten</button></td></tr>`;
+  }).join('')||'<tr><td colspan="5">Noch keine Personen.</td></tr>';
+  updateSelection();
   const k=document.querySelector('#peopleBody tr.edit input.k');
   if(k){k.focus();k.select()}
 }
@@ -225,7 +243,11 @@ function flashInput(el){el.classList.remove('flash');void el.offsetWidth;el.clas
 
 // Aktiv/gesperrt
 $('peopleBody').addEventListener('change',async e=>{
-  const box=e.target.closest('input[type=checkbox][data-uid]');if(!box)return;
+  if(e.target.matches('input.pick')){
+    e.target.checked?selected.add(e.target.dataset.uid):selected.delete(e.target.dataset.uid);
+    return updateSelection();
+  }
+  const box=e.target.closest('input.aktiv');if(!box)return;
   box.disabled=true;
   const {error}=await sb.from('personen').update({aktiv:box.checked}).eq('uid',box.dataset.uid);
   box.disabled=false;
@@ -309,6 +331,66 @@ async function addPerson(){
 }
 $('newShort').addEventListener('keydown',e=>{if(e.key==='Enter')addPerson()});
 $('newUid').addEventListener('keydown',e=>{if(e.key==='Enter')addPerson()});
+
+// ---------- Personen löschen (Auswahl) ----------
+function updateSelection(){
+  const n=selected.size, all=$('selAll');
+  all.checked=n>0&&n===people.length;
+  all.indeterminate=n>0&&n<people.length;
+  const b=$('delBtn');
+  b.disabled=n===0;
+  b.textContent=n===0?'Ausgewählte löschen':(n===people.length?`Alle ${n} löschen`:`${n} ausgewählte löschen`);
+}
+$('selAll').addEventListener('change',e=>{
+  selected=e.target.checked?new Set(people.map(p=>p.uid)):new Set();
+  renderPeople();
+});
+$('delBtn').addEventListener('click',deleteSelected);
+
+async function deleteSelected(){
+  const uids=[...selected];if(!uids.length)return;
+  const names=uids.map(u=>peopleMap[u]||u);
+  const all=uids.length===people.length;
+
+  // Wie viele Kaffees hängen an diesen Chips?
+  const cnt=await sb.from('buchungen').select('id',{count:'exact',head:true}).in('uid',uids);
+  if(cnt.error)return showMsg(dbError(cnt.error),true);
+  const n=cnt.count||0;
+
+  const liste=names.length<=12?names.join(', '):names.slice(0,12).join(', ')+` … (+${names.length-12})`;
+  let text=`${uids.length===1?'Diese Person':uids.length+' Personen'} löschen?\n\n${liste}`;
+  text+=n?`\n\nACHTUNG: Dabei werden auch ${n} gebuchte Kaffees gelöscht. Sie fehlen danach auch in alten Monatsabrechnungen (bereits gespeicherte PDFs bleiben unverändert).\n\nWer nur nicht mehr mitmacht, besser sperren statt löschen.`:'\n\nEs gibt keine Kaffeebuchungen dieser Chips.';
+  text+='\n\nDas kann nicht rückgängig gemacht werden.';
+  if(!confirm(text))return;
+  if(all){
+    const t=prompt(`Wirklich ALLE ${uids.length} Personen${n?' und alle '+n+' Kaffees':''} löschen?\nZum Bestätigen LÖSCHEN eintippen:`);
+    if(!t||t.trim().toUpperCase()!=='LÖSCHEN')return showMsg('Nichts gelöscht.');
+  }
+  const b=$('delBtn');b.disabled=true;b.textContent='Lösche …';
+
+  // 1) Personen löschen. Je nach Datenbank werden die Buchungen dabei
+  //    automatisch mitgelöscht oder die Datenbank verweigert es (23503).
+  let r=await sb.from('personen').delete().in('uid',uids).select('uid');
+  if(r.error&&r.error.code==='23503'){
+    // Buchungen hängen fest an den Chips -> zuerst Buchungen, dann Personen
+    const rb=await sb.from('buchungen').delete().in('uid',uids);
+    if(rb.error){await loadPeople();return showMsg('Nichts gelöscht: '+dbError(rb.error),true)}
+    r=await sb.from('personen').delete().in('uid',uids).select('uid');
+  }
+  if(r.error){await loadPeople();return showMsg(dbError(r.error),true)}
+  const gone=(r.data||[]).length;
+  if(!gone){await loadPeople();return showMsg('Nichts gelöscht (fehlende Berechtigung?).',true)}
+
+  // 2) Übrig gebliebene Buchungen dieser Chips aufräumen (falls die
+  //    Datenbank sie nicht selbst mitgelöscht hat).
+  const done=new Set((r.data||[]).map(x=>x.uid));
+  const rest=await sb.from('buchungen').delete().in('uid',[...done]);
+  selected=new Set();
+  await loadPeople();
+  refreshAll();
+  if(rest.error)return showMsg(`${gone} Person(en) gelöscht, aber ihre alten Buchungen konnten nicht entfernt werden (${dbError(rest.error)}).`,true);
+  showMsg(gone===uids.length?`${gone} Person(en) gelöscht.`:`Nur ${gone} von ${uids.length} Personen gelöscht (fehlende Berechtigung?).`,gone!==uids.length);
+}
 
 // ---------- Station per USB (Web Serial, nur Chrome/Edge) ----------
 // Protokoll (Firmware 3.1): Seite sendet alle 3 s "KAFFEE-LERNMODUS",
