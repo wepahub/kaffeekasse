@@ -19,6 +19,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:15px;bor
 .formrow{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}.field label{display:block;font-weight:650;margin:0 0 6px}.field input,.field select{width:100%;border:1px solid #cbd5ce;border-radius:12px;padding:12px;background:white}
 .notice{padding:12px 15px;border-radius:12px;background:#edf3ef;margin-bottom:16px}.error{background:#faeaea;color:#7c2424}.pill{display:inline-block;padding:7px 11px;border-radius:999px;background:#eaf0ec}.pill.done{background:#d9eee2;color:var(--g);font-weight:700}.hidden{display:none!important}
 .hint{color:var(--muted);font-size:14px;margin:8px 0 0}
+#msg{position:sticky;top:10px;z-index:20}#msg .notice{box-shadow:0 6px 18px #173b2822}
 .scanrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.pill.live{background:#efe2f5;color:#6b2a86;font-weight:700}
 .uidbox{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.06em;padding:8px 14px;border-radius:12px;background:#f3f6f4;border:2px solid var(--g)}
 .edit input{width:100%;border:1px solid #cbd5ce;border-radius:10px;padding:9px;background:white}.edit input.uid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -113,7 +114,7 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function euro(v){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(v||0))}
 function monthName(d){return new Intl.DateTimeFormat('de-AT',{month:'long',year:'numeric'}).format(d)}
 function ymdMonth(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
-function showMsg(t,err=false){$('msg').innerHTML=t?`<div class="notice ${err?'error':''}">${esc(t)}</div>`:''}
+function showMsg(t,err=false){$('msg').innerHTML=t?`<div class="notice ${err?'error':''}">${esc(t)}</div>`:'';clearTimeout(showMsg.t);if(t&&!err)showMsg.t=setTimeout(()=>showMsg(''),8000)}
 function dbError(error){
   if(error&&error.code==='23505')return 'Dieser Eintrag existiert bereits (z. B. Chip-UID schon vergeben).';
   if(error&&error.code==='42501')return 'Keine Berechtigung für diese Aktion (Datenbank-Regeln prüfen).';
